@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0b3d3a">
+  <link rel="manifest" href="manifest.webapp">
+  <link rel="stylesheet" href="styles.css?v=3">
+  <title>Qasid Chat</title>
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <header class="topbar">
+      <span class="brand">QASID</span>
+      <span id="clock" aria-label="Current time"></span>
+    </header>
+
+    <section id="auth-screen" class="screen is-active" aria-labelledby="auth-title">
+      <div class="screen-heading">
+        <h1 id="auth-title">Qasid Login</h1>
+      </div>
+      <form id="auth-form" class="auth-form">
+        <label for="username-input">Username or email</label>
+        <input id="username-input" required maxlength="64" autocomplete="username" placeholder="Username or email">
+        <label id="email-label" for="email-input">Email</label>
+        <input id="email-input" required type="email" autocomplete="email" placeholder="name@example.com">
+        <label for="password-input">Password</label>
+        <input id="password-input" required type="password" minlength="6" autocomplete="current-password" placeholder="At least 6 characters">
+        <button id="auth-submit" type="submit">Login</button>
+        <button id="auth-mode" class="secondary-button" type="button">Create account</button>
+        <p id="auth-status" class="form-status" role="status"></p>
+      </form>
+    </section>
+
+    <section id="welcome-screen" class="screen welcome-screen" aria-labelledby="welcome-title">
+      <div class="welcome-art" id="welcome-art">
+        <img src="assets/welcome.png" alt="Qasid welcome artwork">
+        <div class="welcome-shade"></div>
+      </div>
+      <p id="welcome-countdown" class="welcome-countdown">Starting in 12</p>
+      <button id="lets-go-button" class="lets-go-button" type="button">Let's Go</button>
+      <audio id="welcome-audio" src="assets/welcome.mp3" preload="auto"></audio>
+    </section>
+
+    <section id="home-screen" class="screen home-screen" aria-labelledby="home-title">
+      <div class="profile-summary">
+        <div class="profile-avatar" aria-label="User profile picture">
+          <img id="profile-image" src="assets/welcome.png" alt="Profile picture">
+        </div>
+        <h2 id="home-username" class="profile-name">Ali</h2>
+        <div class="online-status"><span class="status-dot"></span>Online</div>
+      </div>
+
+      <div class="main-menu home-menu" role="listbox" aria-label="Qasid menu">
+        <button class="menu-row menu-option" data-menu="public" type="button">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M6 18.5C4.9 17.6 4 15.8 4 13.5A7.5 7.5 0 0 1 11.5 6c4.1 0 7.5 3.4 7.5 7.5 0 2.3-.9 4.1-2 5l-2.2-1.7c.5-.7.8-1.6.8-2.6a4.8 4.8 0 0 0-4.8-4.8A4.8 4.8 0 0 0 6.8 13c0 1 .3 1.9.8 2.6L6 18.5zm3.5-5.4h5.2M9.5 12h5.2M9.5 9.5h5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="menu-label">Public Chat</span>
+          <span class="menu-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="menu-row menu-option" data-menu="private" type="button">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M8 10V8a4 4 0 1 1 8 0v2M6.5 10h11a1.5 1.5 0 0 1 1.5 1.5v6A1.5 1.5 0 0 1 17.5 19h-11A1.5 1.5 0 0 1 5 17.5v-6A1.5 1.5 0 0 1 6.5 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="menu-label">Private Chat</span>
+          <span class="menu-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="menu-row menu-option" data-menu="profile" type="button">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 12.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm-6 6a6 6 0 0 1 12 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="menu-label">Edit Profile</span>
+          <span class="menu-arrow" aria-hidden="true">›</span>
+        </button>
+
+        <button class="menu-row menu-option" data-menu="notifications" type="button">
+          <span class="menu-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path d="M12 4a4 4 0 0 1 4 4v3.4c0 1.2.4 2.3 1.1 3.2L18 15H6l.9-4.4A4.6 4.6 0 0 0 8 11.4V8a4 4 0 0 1 4-4zm0 16a2.2 2.2 0 0 1-2.1-1.5h4.2A2.2 2.2 0 0 1 12 20z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="menu-label">Notifications</span>
+          <span id="notification-count" class="menu-badge" aria-label="Unread notifications">0</span>
+          <span class="menu-arrow" aria-hidden="true">›</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="inbox-screen" class="screen" aria-labelledby="inbox-title">
+      <div class="screen-heading">
+        <h1 id="inbox-title">Messages</h1>
+        <span id="unread-count" class="counter">0</span>
+      </div>
+      <div class="account-bar"><span id="current-username"></span><button id="logout-button" type="button">Logout</button></div>
+      <div id="conversation-list" class="focus-list" role="listbox" aria-label="Conversations"></div>
+      <button id="contacts-button" class="list-row action-row" type="button">+ New message</button>
+    </section>
+
+    <section id="public-screen" class="screen" aria-labelledby="public-title">
+      <div class="screen-heading"><button class="icon-button menu-back" type="button" aria-label="Back">&lt;</button><h1 id="public-title">Public chat</h1><span id="public-online-count" class="online-count">Online: 0</span></div>
+      <div id="public-presence-list" class="public-presence-list" aria-live="polite"></div>
+      <div id="public-message-list" class="messages" aria-live="polite"></div>
+      <form id="public-composer" class="composer"><label class="sr-only" for="public-input">Public message</label><input id="public-input" maxlength="160" autocomplete="off" placeholder="Write to everyone..."><button type="submit">Send</button></form>
+    </section>
+
+    <section id="profile-screen" class="screen" aria-labelledby="profile-title">
+      <div class="screen-heading"><button class="icon-button menu-back" type="button" aria-label="Back">&lt;</button><h1 id="profile-title">Edit profile</h1></div>
+      <form id="profile-form" class="auth-form"><label for="profile-image-input">Profile picture</label><input id="profile-image-input" type="file" accept="image/*"><label for="profile-username">Username</label><input id="profile-username" required maxlength="24"><button type="submit">Save</button><p id="profile-status" class="form-status" role="status"></p></form>
+    </section>
+
+    <section id="notifications-screen" class="screen" aria-labelledby="notifications-title">
+      <div class="screen-heading"><button class="icon-button menu-back" type="button" aria-label="Back">&lt;</button><h1 id="notifications-title">Notifications</h1></div>
+      <div id="notifications-list" class="focus-list" aria-live="polite"></div>
+    </section>
+
+    <section id="chat-screen" class="screen" aria-labelledby="chat-title">
+      <div class="screen-heading">
+        <button id="back-button" class="icon-button" type="button" aria-label="Back">&lt;</button>
+        <h1 id="chat-title">Chat</h1>
+      </div>
+      <div id="message-list" class="messages" aria-live="polite"></div>
+      <div id="reply-preview" class="reply-preview" hidden>
+        <span class="reply-preview-copy">Replying to <strong id="reply-preview-text"></strong></span>
+        <button id="cancel-reply" type="button" aria-label="Cancel reply">&times;</button>
+      </div>
+      <form id="composer" class="composer">
+        <label class="sr-only" for="message-input">Message</label>
+        <input id="message-input" maxlength="160" autocomplete="off" placeholder="Write a message...">
+        <input id="photo-input" class="sr-only" type="file" accept="image/*">
+        <button type="submit">Send</button>
+      </form>
+      <div id="chat-options" class="chat-options" hidden>
+        <button id="photo-button" type="button">Photo</button>
+        <button id="voice-button" type="button">Voice</button>
+        <p id="attachment-status" class="attachment-status" role="status"></p>
+      </div>
+    </section>
+
+    <section id="contacts-screen" class="screen" aria-labelledby="contacts-title">
+      <div class="screen-heading">
+        <button id="contacts-back-button" class="icon-button" type="button" aria-label="Back">&lt;</button>
+        <h1 id="contacts-title">Choose contact</h1>
+      </div>
+      <div id="contact-list" class="focus-list" role="listbox" aria-label="Contacts"></div>
+    </section>
+
+    <section id="profile-view-screen" class="screen profile-view-screen" aria-labelledby="profile-view-title">
+      <div class="screen-heading">
+        <button id="profile-view-back" class="icon-button" type="button" aria-label="Back">&lt;</button>
+        <h1 id="profile-view-title">User Profile</h1>
+      </div>
+      <div class="viewed-profile">
+        <div class="viewed-profile-avatar"><img id="viewed-profile-image" src="assets/welcome.png" alt="Profile picture"></div>
+        <h2 id="viewed-profile-name" class="profile-name">User</h2>
+        <div class="viewed-profile-status"><span id="viewed-profile-dot" class="status-dot"></span><span id="viewed-profile-state">Online</span></div>
+        <button id="viewed-profile-message" class="profile-message-button" type="button">Message</button>
+      </div>
+    </section>
+
+    <footer class="softkeys">
+      <button id="left-key" class="softkey-button" type="button">Options</button>
+      <span id="center-key">Select</span>
+      <span id="right-key">Back</span>
+    </footer>
+  </main>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="app.js?v=16"></script>
+</body>
+</html>

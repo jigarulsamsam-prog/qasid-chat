@@ -1,0 +1,37 @@
+{
+  "rules": {
+    "users": {
+      ".read": "auth != null",
+      ".indexOn": ["online", "publicOnline", "usernameLower"],
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['username', 'usernameLower', 'email'])"
+      }
+    },
+    "publicMessages": {
+      ".read": "auth != null",
+      "$messageId": {
+        ".write": "auth != null && (!data.exists() && newData.child('sender').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['sender', 'username', 'text', 'time'])"
+      }
+    },
+    "chats": {
+      "$chatId": {
+        "members": {
+          "$uid": {
+            ".read": "auth != null && root.child('chats').child($chatId).child('members').child(auth.uid).val() === true",
+            ".write": "auth != null && (root.child('chats').child($chatId).child('members').child(auth.uid).val() === true || newData.val() === true)",
+            ".validate": "newData.val() === true"
+          }
+        },
+        "messages": {
+          "$messageId": {
+            ".read": "auth != null && root.child('chats').child($chatId).child('members').child(auth.uid).val() === true",
+            ".write": "auth != null && root.child('chats').child($chatId).child('members').child(auth.uid).val() === true && (newData.child('sender').val() === auth.uid || (data.exists() && newData.child('sender').val() === data.child('sender').val() && newData.child('text').val() === data.child('text').val() && newData.child('time').val() === data.child('time').val() && newData.child('readBy').child(auth.uid).val() === true))",
+            ".validate": "newData.hasChildren(['sender', 'text', 'time'])"
+          }
+        }
+      }
+    }
+  }
+}

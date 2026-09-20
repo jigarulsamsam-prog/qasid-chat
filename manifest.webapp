@@ -1,0 +1,20 @@
+{
+  "name": "Qasid Chat",
+  "description": "A lightweight chat app for KaiOS keypad phones.",
+  "launch_path": "/index.html",
+  "type": "web",
+  "version": "0.1.1",
+  "developer": {
+    "name": "Qasid",
+    "url": "https://example.com"
+  },
+  "icons": {
+    "56": "/assets/welcome.png",
+    "112": "/assets/welcome.png"
+  },
+  "default_locale": "en-US",
+  "permissions": {
+    "storage": {},
+    "audio-capture": {}
+  }
+}
