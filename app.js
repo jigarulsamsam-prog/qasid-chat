@@ -1589,97 +1589,66 @@ function handleAuth(event) {
 
   unlockWelcomeAudio();
 
+  const identifier = $("#username-input").value.trim();
+  const password = $("#password-input").value;
+  const email = $("#email-input").value.trim();
+
+  setAuthStatus("Please wait...");
+
   if (!database || !firebaseAuth) {
     setAuthStatus("Firebase is unavailable. Please try again later.");
     return;
   }
 
-  const identifier =
-    $("#username-input")
-      .value
-      .trim();
+  if (authMode === "signup") {
+    const username = identifier;
+    const usernameLower = username.toLowerCase();
 
-  const password =
-    $("#password-input").value;
+    if (!username || !email || !password) {
+      setAuthStatus("Please fill all fields.");
+      return;
+    }
 
-  setAuthStatus(
-    "Please wait..."
-  );
+    if (username.length < 3) {
+      setAuthStatus("Username must be at least 3 characters.");
+      return;
+    }
 
-  if (
-    authMode === "signup"
-  ) {
-    const username =
-      identifier.toLowerCase();
+    if (password.length < 6) {
+      setAuthStatus("Password must be at least 6 characters.");
+      return;
+    }
 
-    database
-      .ref("users")
-      .orderByChild(
-        "usernameLower"
-      )
-      .equalTo(username)
-      .once("value")
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          throw new Error(
-            "Username already taken"
-          );
-        }
+    firebaseAuth
+      .createUserWithEmailAndPassword(email, password)
+      .then((result) => {
+        const user = result.user;
 
-        return firebaseAuth
-          .createUserWithEmailAndPassword(
-            $("#email-input")
-              .value
-              .trim(),
-            password
-          );
-      })
-      .then((result) =>
-        database
-          .ref(
-            "users/" +
-            result.user.uid
-          )
+        return database
+          .ref("users/" + user.uid)
           .set({
-            username:
-              identifier,
-            usernameLower:
-              username,
-            email:
-              result.user.email
+            username: username,
+            usernameLower: usernameLower,
+            email: user.email
           })
-          .then(() =>
-            enterApp(
-              result.user
-            )
-          )
-      )
-      .catch((error) =>
-        setAuthStatus(
-          error.message
-        )
-      );
-  }
-
-  else {
+          .then(() => {
+            return enterApp(user);
+          });
+      })
+      .catch((error) => {
+        setAuthStatus(error.message);
+      });
+  } else {
     usernameToEmail(identifier)
-      .then((email) =>
-        firebaseAuth
-          .signInWithEmailAndPassword(
-            email,
-            password
-          )
-      )
-      .then((result) =>
-        enterApp(
-          result.user
-        )
-      )
-      .catch((error) =>
-        setAuthStatus(
-          error.message
-        )
-      );
+      .then((emailAddress) => {
+        return firebaseAuth.signInWithEmailAndPassword(emailAddress, password);
+      })
+      .then((result) => {
+        enterApp(result.user);
+      })
+      .catch((error) => {
+        setAuthStatus(error.message);
+      });
   }
 }
 
