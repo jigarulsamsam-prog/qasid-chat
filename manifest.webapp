@@ -6,11 +6,11 @@
   "version": "0.1.1",
   "developer": {
     "name": "Qasid",
-    "url": "https://github.com/jigarulsamsam-prog/qasid-chat"
+    "url": "https://jigarulsamsam-prog.github.io/qasid-chat/"
   },
   "icons": {
-    "56": "/assets/welcome.png",
-    "112": "/assets/welcome.png"
+    "56": "/icons/icon-56.png",
+    "112": "/icons/icon-112.png"
   },
   "default_locale": "en-US",
   "permissions": {
