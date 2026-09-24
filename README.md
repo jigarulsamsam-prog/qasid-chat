@@ -12,7 +12,7 @@ cmd /c npx --yes http-server . -p 4173
 
 Open `http://127.0.0.1:4173` in a browser.
 
-## Current MVP
+## Current MAVP
 
 - Inbox with sample conversations
 - Contact picker
