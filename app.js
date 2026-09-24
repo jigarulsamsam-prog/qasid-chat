@@ -5,6 +5,9 @@ const messageListeners = new Set();
 const seenMessageCounts = new Map();
 const notifiedMessageIds = new Set();
 let notifications = [];
+const gupShupStatuses = new Map();
+const gupShupNotifications = new Map();
+let gupShupRequestListenerAttached = false;
 let currentProfileImage = "";
 let publicMessageListenerAttached = false;
 const seenPublicMessageIds = new Set();
@@ -92,6 +95,45 @@ function messagePreview(message) {
   return "New message";
 }
 
+function formatDateTime(value) {
+  if (!value) return "N/A";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function getNotificationPreview(notification) {
+  if (!notification) return "No details";
+
+  if (notification.kind === "gup-shup-request") {
+    const sentAt = notification.sentAt || notification.createdAt;
+    const responseAt = notification.respondedAt || notification.updatedAt;
+    const statusLabel = notification.status === "accepted"
+      ? "Accepted"
+      : notification.status === "rejected"
+        ? "Rejected"
+        : "Sent";
+
+    return `${statusLabel}: ${formatDateTime(responseAt || sentAt)}${sentAt ? ` • Sent: ${formatDateTime(sentAt)}` : ""}`;
+  }
+
+  if (notification.kind === "gup-shup-response") {
+    return `${notification.text}${notification.respondedAt ? ` • ${formatDateTime(notification.respondedAt)}` : ""}`;
+  }
+
+  return notification.text || "No details";
+}
+
 function renderConversations() {
   const unreadTotal = conversations.reduce(
     (total, conversation) => total + (conversation.unread || 0),
@@ -142,16 +184,19 @@ function renderNotifications() {
     (total, conversation) => total + (conversation.unread || 0),
     0
   );
+  const requestTotal = Array.from(gupShupNotifications.values())
+    .filter((notification) => notification.kind === "gup-shup-request" && notification.status === "pending")
+    .length;
 
   if (notificationCount) {
-    notificationCount.textContent = String(unreadTotal);
-    notificationCount.hidden = unreadTotal === 0;
+    notificationCount.textContent = String(unreadTotal + requestTotal);
+    notificationCount.hidden = unreadTotal + requestTotal === 0;
   }
 
   const groupedPrivate = new Map();
   const groupedNotifications = [];
 
-  notifications.forEach((notification) => {
+  [...gupShupNotifications.values(), ...notifications].forEach((notification) => {
     if (notification.kind === "public") {
       groupedNotifications.push({
         ...notification,
@@ -160,7 +205,9 @@ function renderNotifications() {
       return;
     }
 
-    const groupKey = notification.contactId || notification.id;
+    const groupKey = notification.kind === "gup-shup-request" || notification.kind === "gup-shup-response"
+      ? notification.id
+      : notification.contactId || notification.id;
     const existing = groupedPrivate.get(groupKey);
 
     if (existing) {
@@ -178,31 +225,48 @@ function renderNotifications() {
   });
 
   list.innerHTML = groupedNotifications.map((notification) => `
-    <button class="list-row notification-row" data-id="${notification.id || ""}" data-kind="${notification.kind || "private"}" data-contact="${notification.contactId || ""}" type="button">
+    <div class="list-row notification-row" data-id="${notification.id || ""}" data-kind="${notification.kind || "private"}" data-contact="${notification.contactId || ""}">
       <span class="avatar">${renderAvatar(notification, notification.name)}</span>
       <span class="row-copy">
-        <span class="row-name">${notification.name}</span>
-        <span class="row-preview">${notification.text}</span>
+        <span class="row-name">${notification.kind === "gup-shup-request" ? "Gup Shup Request" : notification.name}</span>
+        ${notification.kind === "gup-shup-request" ? `<strong class="request-sender">${notification.name}</strong>` : ""}
+        <span class="row-preview">${getNotificationPreview(notification)}</span>
       </span>
-      <span class="row-time">${notification.time}</span>
+      <span class="row-time">${notification.time || formatDateTime(notification.sentAt || notification.respondedAt || notification.createdAt)}</span>
       ${notification.kind !== "public" ? `<span class="notification-badge">${notification.count}</span>` : ""}
-    </button>
+      ${notification.kind === "gup-shup-request" && notification.status === "pending" ? `
+        <button class="request-action accept-request" data-request-action="accept" type="button">Accept</button>
+        <button class="request-action reject-request" data-request-action="reject" type="button">Reject</button>
+      ` : ""}
+    </div>
   `).join("") || '<p class="row-preview">No new notifications.</p>';
 
-  list.querySelectorAll("button").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.dataset.kind === "public") {
+  list.querySelectorAll(".notification-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const actionButton = row.querySelector("[data-request-action]");
+      if (actionButton) return;
+
+      const notification = gupShupNotifications.get(row.dataset.id) ||
+        notifications.find((item) => item.id === row.dataset.id);
+      if (!notification) return;
+
+      if (notification.kind === "public") {
         showScreen("public-screen");
-        notifications = notifications.filter(
-          (notification) => notification.id !== button.dataset.id
-        );
-      } else {
-        openChat(button.dataset.contact);
-        notifications = notifications.filter(
-          (notification) => notification.contactId !== button.dataset.contact
-        );
+        notifications = notifications.filter((item) => item.id !== notification.id);
+      } else if (notification.kind === "private") {
+        openChat(row.dataset.contact);
       }
+
       renderNotifications();
+    });
+  });
+
+  list.querySelectorAll("[data-request-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const row = button.closest(".notification-row");
+      const notification = gupShupNotifications.get(row.dataset.id) ||
+        notifications.find((item) => item.id === row.dataset.id);
+      if (notification) respondToGupShupRequest(notification, button.dataset.requestAction);
     });
   });
 }
@@ -241,8 +305,265 @@ function openProfile(contactId) {
   $("#viewed-profile-state").textContent = contact.online ? "Online" : "Offline";
   $("#viewed-profile-dot").classList.toggle("is-offline", !contact.online);
   $("#viewed-profile-image").src = contact.profileImage || "assets/welcome.png";
+  updateGupShupButton(contactId);
+  loadGupShupStatus(contactId);
   showScreen("profile-view-screen");
   $("#viewed-profile-message").focus();
+}
+
+function updateGupShupButton(contactId) {
+  const button = $("#viewed-profile-message");
+  const label = $("#gup-shup-label");
+  const actions = $("#gup-shup-request-actions");
+  const acceptButton = $("#accept-gup-shup-request");
+  const rejectButton = $("#reject-gup-shup-request");
+  const status = gupShupStatuses.get(contactId) ||
+    localStorage.getItem("qasid-gup-shup-status-" + contactId) || "none";
+
+  if (!button) return;
+
+  const pendingIncomingRequest = [...gupShupNotifications.values()].find(
+    (notification) =>
+      notification.kind === "gup-shup-request" &&
+      notification.senderId === contactId &&
+      notification.status === "pending"
+  );
+
+  if (label) label.textContent = "Gup Shup Request";
+
+  if (pendingIncomingRequest) {
+    button.disabled = true;
+    button.textContent = "Pending";
+    if (actions) actions.hidden = false;
+    if (acceptButton) acceptButton.dataset.contactId = contactId;
+    if (rejectButton) rejectButton.dataset.contactId = contactId;
+    if (acceptButton && rejectButton) {
+      acceptButton.onclick = () => respondToGupShupRequest(pendingIncomingRequest, "accept");
+      rejectButton.onclick = () => respondToGupShupRequest(pendingIncomingRequest, "reject");
+    }
+    return;
+  }
+
+  if (actions) actions.hidden = true;
+  button.disabled = status === "pending";
+  button.textContent = status === "pending"
+    ? "Your request is pending"
+    : status === "accepted"
+      ? "Message"
+      : "Send";
+}
+
+function getCurrentUsername() {
+  return $("#current-username").textContent.replace(/^@/, "") || "User";
+}
+
+function loadGupShupStatus(contactId) {
+  if (!database || !firebaseUser) return Promise.resolve();
+
+  return Promise.all([
+    database
+      .ref("gupShupRequestsBySender/" + firebaseUser.uid)
+      .orderByChild("receiverId")
+      .equalTo(contactId)
+      .once("value"),
+    database
+      .ref("gupShupRequests/" + firebaseUser.uid)
+      .orderByChild("senderId")
+      .equalTo(contactId)
+      .once("value")
+  ]).then(([outgoingSnapshot, incomingSnapshot]) => {
+    const requests = [];
+
+    outgoingSnapshot.forEach((item) => {
+      const request = item.val();
+      if (request && request.status) requests.push(request);
+    });
+
+    incomingSnapshot.forEach((item) => {
+      const request = item.val();
+      if (request && request.status) requests.push(request);
+    });
+
+    if (!requests.length) return;
+
+    const latestRequest = requests.reduce((latest, request) => {
+      if (!latest || (request.createdAt || 0) > (latest.createdAt || 0)) {
+        return request;
+      }
+      return latest;
+    }, null);
+
+    if (latestRequest && latestRequest.status) {
+      setGupShupStatus(contactId, latestRequest.status);
+    }
+  }).then(() => {
+    updateGupShupButton(contactId);
+  });
+}
+
+function setGupShupStatus(contactId, status) {
+  if (!contactId || !status) return;
+
+  gupShupStatuses.set(contactId, status);
+  localStorage.setItem("qasid-gup-shup-status-" + contactId, status);
+}
+
+function sendGupShupRequest() {
+  if (!database || !firebaseUser || !viewedContact) return;
+
+  const receiver = viewedContact;
+  const requestRef = database.ref("gupShupRequests/" + receiver.id).push();
+  const request = {
+    senderId: firebaseUser.uid,
+    senderName: getCurrentUsername(),
+    receiverId: receiver.id,
+    receiverName: receiver.name,
+    status: "pending",
+    sentAt: firebase.database.ServerValue.TIMESTAMP,
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  };
+
+  const updates = {};
+  updates["gupShupRequests/" + receiver.id + "/" + requestRef.key] = request;
+  updates["gupShupRequestsBySender/" + firebaseUser.uid + "/" + requestRef.key] = request;
+  updates["notifications/" + receiver.id + "/" + requestRef.key] = {
+    kind: "gup-shup-request",
+    requestId: requestRef.key,
+    senderId: firebaseUser.uid,
+    name: getCurrentUsername(),
+    text: "Gup Shup request bheji hai.",
+    status: "pending",
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  };
+
+  gupShupStatuses.set(receiver.id, "pending");
+  localStorage.setItem("qasid-gup-shup-status-" + receiver.id, "pending");
+  updateGupShupButton(receiver.id);
+
+  database.ref().update(updates).then(() => {
+    updateGupShupButton(receiver.id);
+  }).catch((error) => {
+    gupShupStatuses.delete(receiver.id);
+    localStorage.removeItem("qasid-gup-shup-status-" + receiver.id);
+    updateGupShupButton(receiver.id);
+    const status = $("#profile-status");
+    if (status) status.textContent = "Request send nahi hui: " + error.message;
+  });
+}
+
+function respondToGupShupRequest(notification, action) {
+  if (!database || !firebaseUser || !notification.requestId) return;
+
+  const status = action === "accept" ? "accepted" : "rejected";
+  const updates = {};
+  const respondedAt = firebase.database.ServerValue.TIMESTAMP;
+  updates["gupShupRequests/" + firebaseUser.uid + "/" + notification.requestId + "/status"] = status;
+  updates["gupShupRequests/" + firebaseUser.uid + "/" + notification.requestId + "/respondedAt"] = respondedAt;
+  updates["gupShupRequestsBySender/" + notification.senderId + "/" + notification.requestId + "/status"] = status;
+  updates["gupShupRequestsBySender/" + notification.senderId + "/" + notification.requestId + "/respondedAt"] = respondedAt;
+  updates["notifications/" + firebaseUser.uid + "/" + notification.requestId + "/status"] = status;
+
+  const responseRef = database.ref("notifications/" + notification.senderId).push();
+  updates["notifications/" + notification.senderId + "/" + responseRef.key] = {
+    kind: "gup-shup-response",
+    requestId: notification.requestId,
+    contactId: firebaseUser.uid,
+    name: getCurrentUsername(),
+    text: status === "accepted" ? "Gup Shup request accept ho gayi." : "Gup Shup request reject ho gayi.",
+    status,
+    respondedAt,
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  };
+
+  setGupShupStatus(notification.senderId, status);
+  if (viewedContact && viewedContact.id === notification.senderId) {
+    updateGupShupButton(notification.senderId);
+  }
+
+  database.ref().update(updates).then(() => {
+    gupShupNotifications.delete(notification.id);
+    renderNotifications();
+  }).catch((error) => {
+    console.error("Could not respond to Gup Shup request.", error);
+  });
+}
+
+function listenForOwnGupShupRequests() {
+  if (!database || !firebaseUser || gupShupRequestListenerAttached) return;
+
+  gupShupRequestListenerAttached = true;
+  database.ref("gupShupRequestsBySender/" + firebaseUser.uid).on("value", (snapshot) => {
+    snapshot.forEach((item) => {
+      const request = item.val();
+      if (!request.receiverId || !request.status) return;
+
+      gupShupStatuses.set(request.receiverId, request.status);
+      localStorage.setItem(
+        "qasid-gup-shup-status-" + request.receiverId,
+        request.status
+      );
+
+      if (viewedContact && viewedContact.id === request.receiverId) {
+        updateGupShupButton(request.receiverId);
+      }
+    });
+  });
+}
+
+function listenForGupShupNotifications() {
+  if (!database || !firebaseUser) return;
+
+  database.ref("gupShupRequests/" + firebaseUser.uid).on("value", (snapshot) => {
+    snapshot.forEach((item) => {
+      const request = item.val();
+      if (!request) return;
+
+      if (request.status !== "pending") {
+        gupShupNotifications.delete(item.key);
+        setGupShupStatus(request.senderId, request.status);
+        if (viewedContact && viewedContact.id === request.senderId) {
+          updateGupShupButton(request.senderId);
+        }
+        return;
+      }
+
+      gupShupNotifications.set(item.key, {
+        id: item.key,
+        kind: "gup-shup-request",
+        requestId: item.key,
+        senderId: request.senderId,
+        name: request.senderName,
+        text: "Gup Shup request bheji hai.",
+        status: request.status,
+        sentAt: request.sentAt || request.createdAt,
+        respondedAt: request.respondedAt,
+        time: formatDateTime(request.sentAt || request.createdAt)
+      });
+    });
+    renderNotifications();
+  });
+
+  database.ref("notifications/" + firebaseUser.uid).on("value", (snapshot) => {
+    snapshot.forEach((item) => {
+      const notification = item.val();
+      if (notification.kind === "gup-shup-response") {
+        gupShupNotifications.set(item.key, {
+          ...notification,
+          id: item.key,
+          respondedAt: notification.respondedAt || notification.createdAt
+        });
+
+        if (notification.kind === "gup-shup-response" && notification.contactId) {
+          setGupShupStatus(notification.contactId, notification.status);
+        }
+      }
+    });
+
+    renderNotifications();
+    if (viewedContact) updateGupShupButton(viewedContact.id);
+  });
 }
 
 function renderMessages() {
@@ -1440,40 +1761,23 @@ function loadUsers() {
 }
 
 function setPresence(user) {
-  const connectedRef =
-    database.ref(
-      ".info/connected"
-    );
+  if (!database || !user) return;
 
-  const userStatusRef =
-    database.ref(
-      "users/" +
-      user.uid +
-      "/online"
-    );
+  const connectedRef = database.ref(".info/connected");
+  const userStatusRef = database.ref("users/" + user.uid + "/online");
+  const publicStatusRef = database.ref("users/" + user.uid + "/publicOnline");
 
-  connectedRef.on(
-    "value",
-    (snapshot) => {
-      if (
-        snapshot.val() !== true
-      ) {
-        return;
-      }
-
-      userStatusRef
-        .onDisconnect()
-        .set(false);
-
-
-  if (firebaseUser && database) {
-    database
-      .ref("users/" + firebaseUser.uid + "/publicOnline")
-      .set(false);
-  }
-      userStatusRef.set(true);
+  connectedRef.on("value", (snapshot) => {
+    if (snapshot.val() !== true) {
+      return;
     }
-  );
+
+    userStatusRef.onDisconnect().set(false);
+    publicStatusRef.onDisconnect().set(false);
+
+    userStatusRef.set(true);
+    publicStatusRef.set(false);
+  });
 }
 
 /* =========================
@@ -1535,6 +1839,8 @@ function enterApp(user) {
       );
 
       listenForPublicMessages();
+      listenForOwnGupShupRequests();
+      listenForGupShupNotifications();
 
       startWelcomeScreen();
     })
@@ -1763,7 +2069,7 @@ function selectFocused() {
 
   if (activeScreen === "profile-view-screen") {
     if (viewedContact) {
-      openChat(viewedContact.id);
+      $("#viewed-profile-message").click();
     }
     return;
   }
@@ -1851,10 +2157,55 @@ $("#viewed-profile-message").addEventListener(
   "click",
   () => {
     if (viewedContact) {
-      openChat(viewedContact.id);
+      const status = gupShupStatuses.get(viewedContact.id) ||
+        localStorage.getItem("qasid-gup-shup-status-" + viewedContact.id);
+      const pendingIncomingRequest = [...gupShupNotifications.values()].find(
+        (notification) =>
+          notification.kind === "gup-shup-request" &&
+          notification.senderId === viewedContact.id &&
+          notification.status === "pending"
+      );
+
+      if (pendingIncomingRequest) {
+        return;
+      }
+
+      if (status === "accepted") {
+        openChat(viewedContact.id);
+      } else if (status !== "pending") {
+        sendGupShupRequest();
+      }
     }
   }
 );
+
+$("#accept-gup-shup-request").addEventListener("click", () => {
+  const contactId = $("#accept-gup-shup-request").dataset.contactId;
+  const pendingRequest = [...gupShupNotifications.values()].find(
+    (notification) =>
+      notification.kind === "gup-shup-request" &&
+      notification.senderId === contactId &&
+      notification.status === "pending"
+  );
+
+  if (pendingRequest) {
+    respondToGupShupRequest(pendingRequest, "accept");
+  }
+});
+
+$("#reject-gup-shup-request").addEventListener("click", () => {
+  const contactId = $("#reject-gup-shup-request").dataset.contactId;
+  const pendingRequest = [...gupShupNotifications.values()].find(
+    (notification) =>
+      notification.kind === "gup-shup-request" &&
+      notification.senderId === contactId &&
+      notification.status === "pending"
+  );
+
+  if (pendingRequest) {
+    respondToGupShupRequest(pendingRequest, "reject");
+  }
+});
 
 $("#composer").addEventListener(
   "submit",
