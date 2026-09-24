@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="theme-color" content="#0b3d3a">
   <link rel="manifest" href="manifest.webapp">
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
   <title>Qasid Chat</title>
 </head>
 <body>
@@ -154,7 +154,14 @@
         <div class="viewed-profile-avatar"><img id="viewed-profile-image" src="assets/welcome.png" alt="Profile picture"></div>
         <h2 id="viewed-profile-name" class="profile-name">User</h2>
         <div class="viewed-profile-status"><span id="viewed-profile-dot" class="status-dot"></span><span id="viewed-profile-state">Online</span></div>
-        <button id="viewed-profile-message" class="profile-message-button" type="button">Message</button>
+        <div class="gup-shup-control">
+          <strong id="gup-shup-label">Gup Shup Request</strong>
+          <button id="viewed-profile-message" class="profile-message-button" type="button">Send</button>
+        </div>
+        <div id="gup-shup-request-actions" class="gup-shup-request-actions" hidden>
+          <button id="accept-gup-shup-request" class="request-action accept-request" type="button">Accept</button>
+          <button id="reject-gup-shup-request" class="request-action reject-request" type="button">Reject</button>
+        </div>
       </div>
     </section>
 
@@ -168,6 +175,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>
