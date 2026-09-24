@@ -7,6 +7,36 @@
       }
     },
 
+    "gupShupRequests": {
+      "$receiverUid": {
+        ".read": "auth != null && auth.uid === $receiverUid",
+        "$requestId": {
+          ".read": "auth != null && (auth.uid === $receiverUid || data.child('senderId').val() === auth.uid)",
+          ".write": "auth != null && ((!data.exists() && auth.uid === newData.child('senderId').val() && newData.child('receiverId').val() === $receiverUid) || (auth.uid === $receiverUid && data.child('receiverId').val() === auth.uid))"
+        }
+      }
+    },
+
+    "gupShupRequestsBySender": {
+      "$senderUid": {
+        ".read": "auth != null && auth.uid === $senderUid",
+        "$requestId": {
+          ".read": "auth != null && auth.uid === $senderUid",
+          ".write": "auth != null && ((!data.exists() && auth.uid === $senderUid) || (data.child('receiverId').val() === auth.uid))"
+        }
+      }
+    },
+
+    "notifications": {
+      "$userUid": {
+        ".read": "auth != null && auth.uid === $userUid",
+        "$notificationId": {
+          ".read": "auth != null && auth.uid === $userUid",
+          ".write": "auth != null && (auth.uid === $userUid || newData.child('senderId').val() === auth.uid || newData.child('contactId').val() === auth.uid)"
+        }
+      }
+    },
+
     "publicMessages": {
       ".read": "auth != null",
       ".write": "auth != null"
