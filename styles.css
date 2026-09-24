@@ -697,6 +697,32 @@ h1 {
     inset 3px 0 0 var(--cyan);
 }
 
+.notification-row {
+  flex-wrap: wrap;
+}
+
+.request-action {
+  min-height: 28px;
+  padding: 4px 9px;
+  color: #031012;
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.request-action.reject-request {
+  color: var(--white);
+  background: transparent;
+}
+
+.request-action:focus,
+.request-action:hover {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+
 .avatar {
   width: 34px;
   height: 34px;
@@ -721,6 +747,12 @@ h1 {
 .row-copy {
   min-width: 0;
   flex: 1;
+}
+
+.request-sender {
+  display: block;
+  color: var(--white);
+  font-size: 12px;
 }
 
 .row-name,
@@ -1088,4 +1120,28 @@ h1 {
     border-radius: 0;
     border-width: 0;
   }
+}
+
+.gup-shup-control {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin-top: 18px;
+}
+
+.gup-shup-control strong {
+  color: var(--white);
+  font-size: 13px;
+}
+
+.profile-message-button {
+  margin-top: 0;
+}
+
+.profile-message-button:disabled {
+  color: var(--muted);
+  background: var(--panel2);
+  border-color: var(--line);
+  cursor: wait;
 }
